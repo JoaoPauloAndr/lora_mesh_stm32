@@ -75,5 +75,6 @@ subghz_phy_pingpong/subghz_phy_app.o: ..\SubGHz_Phy\App\subghz_phy_app.c \
   ..\..\..\..\..\..\Utilities\sequencer\stm32_seq.h \
   ..\Core\Inc\utilities_def.h \
   ..\..\..\..\..\..\Cmd_Processing\Cmd_Processing.h \
+  ..\..\..\..\..\..\Cmd_Processing\Queue.h \
   ..\..\..\..\..\..\Utilities\misc\stm32_systime.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\time.h

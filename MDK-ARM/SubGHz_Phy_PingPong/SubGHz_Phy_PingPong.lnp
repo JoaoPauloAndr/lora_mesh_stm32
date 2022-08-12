@@ -15,6 +15,7 @@
 "subghz_phy_pingpong\app_subghz_phy.o"
 "subghz_phy_pingpong\subghz_phy_app.o"
 "subghz_phy_pingpong\cmd_processing.o"
+"subghz_phy_pingpong\queue.o"
 "subghz_phy_pingpong\radio_board_if.o"
 "subghz_phy_pingpong\stm32wlxx_nucleo.o"
 "subghz_phy_pingpong\stm32wlxx_nucleo_radio.o"

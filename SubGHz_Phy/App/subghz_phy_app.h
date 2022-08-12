@@ -113,7 +113,7 @@ extern "C" {
 #define PAYLOAD_LEN                                 255
 
 /* N de mensagens que serao armazenadas */
-#define N_RXMESSAGES 												(5)
+#define N_RXMESSAGES 												(10)
 /* Tamanho do buffer Rx*/
 #define RXBUFFERSIZE                      			(300)
 
@@ -121,7 +121,36 @@ typedef struct Msg2Send_s
 {
 	uint8_t destiny;
 	char *msg;
+	uint16_t len;
 }Msg2Send;
+
+//typedef struct Protocol_s
+//{
+//	uint8_t header1;
+//	uint8_t header2;
+//	uint8_t size;
+//	uint8_t control;
+//	uint8_t origin;
+//	uint8_t destiny;
+//	uint16_t netId;
+//	uint8_t payload[245];
+//	uint8_t crc;
+//}Payload;
+
+//typedef union {
+//	struct {
+//			uint8_t header1;
+//			uint8_t header2;
+//			uint8_t size;
+//			uint8_t control;
+//			uint8_t origin;
+//			uint8_t destiny;
+//			uint16_t netId;
+//			uint8_t payload[245];
+//			uint8_t crc;
+//	}fields;
+//	uint8_t bytes[255];
+//}Payload;	
 
 /* USER CODE BEGIN EC */
 
