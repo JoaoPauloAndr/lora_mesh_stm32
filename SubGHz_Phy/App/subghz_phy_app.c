@@ -72,7 +72,7 @@ typedef enum
 /* Configurations */
 /*Timeout*/
 #define RX_TIMEOUT_VALUE           (0xFFFFFF) /* continuous Rx */
-#define TX_TIMEOUT_VALUE           3000
+#define TX_TIMEOUT_VALUE           400
 /* PING string*/
 #define PING "PING"
 /* PONG string*/
@@ -90,6 +90,7 @@ typedef enum
 /* LED blink Period*/
 #define LED_PERIOD_MS                 200
 #define DEVICE_ID													 0
+#define NET_ID																 0
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -133,11 +134,18 @@ SysTime_t lastMsgTime;
 
 //Buffers para Rx
 uint8_t aRxBuffer[RXBUFFERSIZE] = {0};
-//volatile uint8_t n_messages = 0;
 volatile uint16_t uartRxIdx = 0;
 bool receivedRx = false;
-Msg2Send messages[10];
 Queue queue;
+uint8_t AddressTable[N_MAX_NODES];
+uint8_t DeviceID = DEVICE_ID;
+
+/*****TESTE*****/
+//RECEPTOR
+//uint8_t msgs_received = 0;
+//TRANSMISSOR
+//uint8_t msgs_sent = 0;
+
 
 /* USER CODE END PV */
 
@@ -225,44 +233,53 @@ static void OnUART_RxPollingTimer(void *context)
 	{
 		currentTime = SysTimeGet();
 		timeDiff = SysTimeSub(currentTime, lastMsgTime);
-		if (timeDiff.SubSeconds > 20 && !QueueFull(&queue)) 
+		if (timeDiff.SubSeconds > 5 && !QueueFull(&queue)) 
 		{
 			uartRxIdx = 0;
 			receivedRx = false;
 			UTIL_SEQ_SetTask((1 << CFG_SEQ_Task_Process_Messages), CFG_SEQ_Prio_0);
 		}
-//		else
-//		{
-//			APP_LOG(TS_OFF, VLEVEL_M, "Message queue has reached its limit (%d)\r\n", N_RXMESSAGES);
-//		}	
 	}	
 }
 
 static void ProccessCmd(void)
 {
-	int destiny, ack = 1;
+	int destiny = DeviceID ;
+	int msglen;
 	size_t rxBufferLen = strlen((char*)aRxBuffer);
 	char *msg = (char*) calloc(rxBufferLen + 1, sizeof(char));
-	proccess_cmd((char*)aRxBuffer, rxBufferLen, msg, &destiny, &ack);
+	input_type in = Input_Error;
+	proccess_cmd(&in, (char*)aRxBuffer, rxBufferLen, msg, &destiny);
+	uint8_t ack = 0;
 	
-	//Montar pacote no formato do protocolo e enfileirar
-	int msglen = strlen(msg);
-	Payload payload = {.fields =  119, 33, msglen,		//header1, header2, size 
-																ack, DEVICE_ID, destiny,  //control, origin, destiny
-																0																			//netId,
-															};
-	memcpy(payload.fields.payload, (uint8_t*)msg, msglen);
-	payload.fields.crc = 16;
-	Enqueue(&queue, payload);
+	//Processar diferentes tipos de comando com switch
+	switch(in)
+	{
+		case CSend_Cmd:
+			ack = 1;
+		case Send_Cmd:
+			//Montar pacote no formato do protocolo e enfileirar
+			msglen = strlen(msg);
+			Payload payload = {.fields =  119, 33, msglen,		//header1, header2, size 
+																		ack, DeviceID, destiny,  //control, origin, destiny
+																		0																			//netId,
+																	};
+			//APP_LOG(TS_ON, VLEVEL_L, "Sending to destiny = %d\n\r", destiny);
+			memcpy(payload.fields.payload, (uint8_t*)msg, msglen);
+			Enqueue(&queue, payload);
+			break;
+		case SetID_Cmd:
+			DeviceID = destiny;
+			APP_LOG(TS_OFF, VLEVEL_L, "\n\rDEVICE_ID is now = %d\n\r", DeviceID);
+			break;
+		//fazer este caso
+		case SetRoute_Cmd:
+		default:
+			APP_LOG(TS_ON, VLEVEL_L, "Error in input.\n\r");
+			break;
+	};	
 	free(msg);
 	memset(aRxBuffer, 0, rxBufferLen);
-	//printf("msg: %s\n\r", msg);
-//	messages[n_messages].destiny = destiny;
-//	messages[n_messages].msg = (char*) malloc((msglen + 1)*sizeof(char));
-//	strncpy(messages[n_messages].msg, msg, msglen);
-//	messages[n_messages].len = msglen;
-	//printf("\n\rmsg: %s \n\r", messages[n_messages].msg);
-	//n_messages++;
 }	
 
 static void TxPollingTimer(void *context)
@@ -272,8 +289,7 @@ static void TxPollingTimer(void *context)
 		Payload transmission;
 		Dequeue(&queue, &transmission);
 		memcpy(BufferTx, transmission.bytes, sizeof(transmission.bytes));
-		//APP_LOG(TS_ON, VLEVEL_L, "\n\rSize of BufferTx = %d\n\r", sizeof(BufferTx));															
-		//memcpy(BufferTx, (uint8_t*)messages[n_messages-1].msg, strlen(messages[n_messages-1].msg) +1);
+		APP_LOG(TS_OFF, VLEVEL_L, "\n\r");
 		APP_LOG(TS_ON, VLEVEL_L, "Transmitting message\n\r");
 		Radio.Send(BufferTx, PAYLOAD_LEN);
 	}		
@@ -286,25 +302,17 @@ void SubghzApp_Init(void)
 	
 	UTIL_ADV_TRACE_StartRxProcess(CMD_GetChar);
 	
-  APP_LOG(TS_OFF, VLEVEL_M, "\n\rPING PONG\n\r");
-  /* Print APP version*/
-  APP_LOG(TS_OFF, VLEVEL_M, "APP_VERSION= V%X.%X.%X\r\n",
-          (uint8_t)(__APP_VERSION >> __APP_VERSION_MAIN_SHIFT),
-          (uint8_t)(__APP_VERSION >> __APP_VERSION_SUB1_SHIFT),
-          (uint8_t)(__APP_VERSION >> __APP_VERSION_SUB2_SHIFT));
-  /* Led Timers*/
-  UTIL_TIMER_Create(&timerLed, 0xFFFFFFFFU, UTIL_TIMER_ONESHOT, OnledEvent, NULL);
-  UTIL_TIMER_SetPeriod(&timerLed, LED_PERIOD_MS);
-  UTIL_TIMER_Start(&timerLed);
+  APP_LOG(TS_OFF, VLEVEL_M, "\n\rLORA MESH\n\r");
+	APP_LOG(TS_OFF, VLEVEL_M, "DEVICE ID=%d\n\r", DeviceID);
 	
 	/* UART RX Timer*/
   UTIL_TIMER_Create(&timerRxPolling, 0xFFFFFFFFU, UTIL_TIMER_PERIODIC, OnUART_RxPollingTimer, NULL);
-  UTIL_TIMER_SetPeriod(&timerRxPolling, 500);
+  UTIL_TIMER_SetPeriod(&timerRxPolling, 5);
   UTIL_TIMER_Start(&timerRxPolling);
 	
 	/* TX Timer*/
   UTIL_TIMER_Create(&timerTxPolling, 0xFFFFFFFFU, UTIL_TIMER_PERIODIC, TxPollingTimer, NULL);
-  UTIL_TIMER_SetPeriod(&timerTxPolling, 1000);
+  UTIL_TIMER_SetPeriod(&timerTxPolling, 20);
   UTIL_TIMER_Start(&timerTxPolling);
 
   /* Radio initialization */
@@ -330,12 +338,12 @@ void SubghzApp_Init(void)
   Radio.SetTxConfig(MODEM_LORA, TX_OUTPUT_POWER, 0, LORA_BANDWIDTH,
                     LORA_SPREADING_FACTOR, LORA_CODINGRATE,
                     LORA_PREAMBLE_LENGTH, LORA_FIX_LENGTH_PAYLOAD_ON,
-                    true, 0, 0, LORA_IQ_INVERSION_ON, TX_TIMEOUT_VALUE);
+                    true, 0, 0, false, TX_TIMEOUT_VALUE); //LORA_IQ_INVERSION_ON
 
   Radio.SetRxConfig(MODEM_LORA, LORA_BANDWIDTH, LORA_SPREADING_FACTOR,
                     LORA_CODINGRATE, 0, LORA_PREAMBLE_LENGTH,
                     LORA_SYMBOL_TIMEOUT, LORA_FIX_LENGTH_PAYLOAD_ON,
-                    0, true, 0, 0, LORA_IQ_INVERSION_ON, true);
+                    0, true, 0, 0, false, true); //LORA_IQ_INVERSION_ON
 
   Radio.SetMaxPayloadLength(MODEM_LORA, MAX_APP_BUFFER_SIZE);
 
@@ -368,51 +376,52 @@ void SubghzApp_Init(void)
   /*fills tx buffer*/
   memset(BufferTx, 0x0, MAX_APP_BUFFER_SIZE);
 
-  APP_LOG(TS_ON, VLEVEL_L, "rand=%d\n\r", random_delay);
+  //APP_LOG(TS_ON, VLEVEL_L, "rand=%d\n\r", random_delay);
   /*starts reception*/
-  Radio.Rx(3000 + random_delay);
+  Radio.Rx(3000 + random_delay); //3000
   /*register task to to be run in while(1) after Radio IT*/
   //UTIL_SEQ_RegTask((1 << CFG_SEQ_Task_SubGHz_Phy_App_Process), UTIL_SEQ_RFU, PingPong_Process);
 	UTIL_SEQ_RegTask((1 << CFG_SEQ_Task_StateMachineProccess), UTIL_SEQ_RFU, StateMachineProccess);
 	UTIL_SEQ_RegTask((1 << CFG_SEQ_Task_Process_Messages), UTIL_SEQ_RFU, ProccessCmd);
 	
+	/*TESTE DE ROTEAMENTO*/
+	//DEVICE ID = 0
+	for(int i = 0; i < N_MAX_NODES; i++)
+	{
+		AddressTable[i] = 0xFF;
+	}
+	AddressTable[0] = 0;
+	AddressTable[1] = 1;
+	AddressTable[2] = 1;
+	
+	APP_LOG(TS_OFF, VLEVEL_M, "ROUTING TABLE = [");
+	for(uint8_t i = 0; i < N_MAX_NODES-1; i++)
+	{
+		APP_LOG(TS_OFF, VLEVEL_M, "%d,", AddressTable[i]);
+	}
+	APP_LOG(TS_OFF, VLEVEL_M, "%d]\n\r", AddressTable[N_MAX_NODES-1]);
   /* USER CODE END SubghzApp_Init_2 */
 }
 extern void MX_TIM2_Init(void);
 /* USER CODE BEGIN EF */
 void Buzz_Master(void)
 {
-//	MX_TIM2_Init();
-//	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-//	HAL_Delay(100);
-//	HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
-//	BuzzDeInit();
-	
 	MX_TIM2_Init();
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-	HAL_Delay(100);
+	HAL_Delay(10);
 	HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
-	HAL_Delay(100);
+	HAL_Delay(10);
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-	HAL_Delay(100);
+	HAL_Delay(10);
 	HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
 	BuzzDeInit();
 }
 
 void Buzz_Slave(void)
 {
-MX_TIM2_Init();
-//	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-//	HAL_Delay(30);
-//	HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
-//	HAL_Delay(30);
-//	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-//	HAL_Delay(30);
-//	HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
-//	BuzzDeInit();
-	
+	MX_TIM2_Init();
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-	HAL_Delay(200);
+	HAL_Delay(20);
 	HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
 	BuzzDeInit();
 }	
@@ -429,12 +438,9 @@ void BuzzDeInit(void)
 static void OnTxDone(void)
 {
   /* USER CODE BEGIN OnTxDone */
-	//Deletar mensagem
-//	free(messages[n_messages-1].msg);
-//	n_messages--;
   APP_LOG(TS_ON, VLEVEL_L, "OnTxDone\n\r");
   /* Update the State of the FSM*/
-  State = TX;
+  State = RX; //TX
 	 /* Clear BufferTx*/
   memset(BufferTx, 0, MAX_APP_BUFFER_SIZE);
   /* Run PingPong process in background*/
@@ -469,7 +475,7 @@ static void OnRxDone(uint8_t *payload, uint16_t size, int16_t rssi, int8_t LoraS
   /* Record Received Signal Strength*/
   RssiValue = rssi;
   /* Record payload content*/
-  APP_LOG(TS_ON, VLEVEL_L, "payload. size=%d \n\r", size); //VLEVEL_H
+  //APP_LOG(TS_ON, VLEVEL_L, "payload. size=%d \n\r", size); //VLEVEL_H
 	//APP_LOG(TS_OFF, VLEVEL_L, "%s\n", (char*)BufferRx);
   //APP_LOG(TS_OFF, VLEVEL_L, "\n\r");
   /* Run PingPong process in background*/
@@ -482,8 +488,10 @@ static void OnTxTimeout(void)
 {
   /* USER CODE BEGIN OnTxTimeout */
   APP_LOG(TS_ON, VLEVEL_L, "OnTxTimeout\n\r");
+	/* Clear BufferTx*/
+  memset(BufferTx, 0, MAX_APP_BUFFER_SIZE);
   /* Update the State of the FSM*/
-  State = TX_TIMEOUT;
+  State = RX;//TX_TIMEOUT;
   /* Run PingPong process in background*/
   //UTIL_SEQ_SetTask((1 << CFG_SEQ_Task_SubGHz_Phy_App_Process), CFG_SEQ_Prio_0);
 	UTIL_SEQ_SetTask((1 << CFG_SEQ_Task_StateMachineProccess), CFG_SEQ_Prio_0);
@@ -525,63 +533,123 @@ static void StateMachineProccess(void)
 	switch(State)
 	{
 		case RX:
-			//Tentar mudar para mandar a mensagem no final processamento dela (ProccerssCmd)
-//			if(n_messages)
-//			{
-//				int msglen = messages[n_messages-1].len;
-//				Payload payload = {.fields =  119, 33, msglen,																			//header1, header2, size 
-//																		 1, DEVICE_ID, messages[n_messages-1].destiny,  //control, origin, destiny
-//																			0																							//netId,
-//																		};
-//				memcpy(payload.fields.payload, (uint8_t*)messages[n_messages-1].msg, msglen+1);
-//				payload.fields.crc = 16;
-//				memcpy(BufferTx, payload.bytes, sizeof(payload.bytes));
-//				APP_LOG(TS_ON, VLEVEL_L, "\n\rSize of BufferTx = %d\n\r", sizeof(BufferTx));															
-//				//memcpy(BufferTx, (uint8_t*)messages[n_messages-1].msg, strlen(messages[n_messages-1].msg) +1);
-//				APP_LOG(TS_ON, VLEVEL_L, "Transmitting message\n\r");
-//				Radio.Send(BufferTx, PAYLOAD_LEN);
-//			}
+			//			/*****TESTE - RECEPTOR*****/
+			//				if(RxBufferSize > 0)
+			//				{
+			//						//converter para protocolo e verificar validade da mensagem
+			//						//Buzz_Master();
+			//						RxBufferSize = 0;
+			//						Payload received;
+			//						received.fields.header1 = BufferRx[0];
+			//						received.fields.header2 = BufferRx[1];
+			//						uint8_t origin = BufferRx[4];
+			//						uint8_t destiny = BufferRx[5];
+			//						uint8_t header1 = 119;
+			//						uint8_t header2 = 33;
+			//						if(received.fields.header1 == header1 && received.fields.header2 == header2)
+			//						{
+			//							if(destiny == DEVICE_ID)
+			//							{
+			//								//MENSAGEM RECEBIDA COM SUCESSO
+			//								//char msg[245];
+			//								APP_LOG(TS_ON, VLEVEL_L, "%d message(s) received\n\r", ++msgs_received);
+			//								uint8_t msglen = BufferRx[2] + 1;
+			//								char *msg = (char*)calloc(msglen, sizeof(char));
+			//								memcpy(msg, (char*)BufferRx+8, msglen);
+			//								APP_LOG(TS_ON, VLEVEL_L, "Device %d sent me: %s\n\r", origin,msg);
+			//								free(msg);
+			//							}
+			//						}
+			//				}	
 			if(RxBufferSize > 0)
 			{
-					//converter para protocolo e verificar validade da mensagem
-					Buzz_Master();
+				//Recebeu algo
+				/*TODO:
+				* Atestar validez da mensagem recebida (examinar headers)
+				* Veriricar destinatário final (nível 0): 
+				* Caso seja este nó, imprimir e verificar ack
+				* Se for para outro nó, verificar destinatário nível 1:
+				* Se for este nó, repassar.
+				* Caso contrário, descartar a mensagem
+				*/
 					RxBufferSize = 0;
 					Payload received;
 					received.fields.header1 = BufferRx[0];
 					received.fields.header2 = BufferRx[1];
-					printf("header1 = %d\n\r", received.fields.header1);
-					printf("header2 = %d\n\r", received.fields.header2);
-					if(received.fields.header1 == (uint8_t)119 && received.fields.header2 == (uint8_t)33)
+					uint8_t origin0 = BufferRx[4];
+					uint8_t destiny0 = BufferRx[5];
+					uint8_t origin1 = BufferRx[6];
+					uint8_t destiny1 = BufferRx[7];
+					uint8_t header1 = 119;
+					uint8_t header2 = 33;
+					if(received.fields.header1 == header1 && received.fields.header2 == header2)
 					{
-						char msg[245];
-						memcpy(msg, (char*)BufferRx+8, 245);
-						APP_LOG(TS_ON, VLEVEL_L, "Received: %s\n\r", msg);
-						//Testar Ack
-						if(received.fields.control & 1)
+						if(destiny0 == DeviceID)
 						{
-							HAL_Delay(1000);
-							Payload response = {.fields = 119, 33, 2,
-																							0, DEVICE_ID, received.fields.origin,
-																							0
-																						};
-							memcpy(response.fields.payload, "ok", 2);
-							response.fields.crc = 16;
-							memcpy(BufferTx, response.bytes, sizeof(response.bytes));
-							Radio.Send(BufferTx, PAYLOAD_LEN);															
-						}	
-					}
-					
-					//APP_LOG(TS_ON, VLEVEL_L, "Received message with error in header\n\r");					
-					/* Add delay between RX and TX */
-					HAL_Delay(Radio.GetWakeupTime() + RX_TIME_MARGIN);
-					Radio.Rx(RX_TIMEOUT_VALUE); //RX_TIMEOUT_VALUE
-			}
-			else //Continuar escutando
-			{
-				APP_LOG(TS_ON, VLEVEL_L, "Listening...\n\r");
-				Buzz_Slave();
-				Radio.Rx(RX_TIMEOUT_VALUE);
-			}
+							uint8_t msglen = BufferRx[2] + 1;
+							char *msg = (char*)calloc(msglen, sizeof(char));
+							memcpy(msg, (char*)BufferRx+10, msglen);
+							APP_LOG(TS_ON, VLEVEL_L, "Device %d sent me: %s\n\r", origin0,msg);
+							free(msg);
+							uint8_t ack = BufferRx[3];
+							if(ack & 1)
+							{
+								Payload response = {
+									.fields = 119, 33, 2,
+									0, DeviceID, origin0,
+									DeviceID, AddressTable[origin0], NET_ID
+								};
+								memcpy(response.fields.payload, "ok", 2);
+								Enqueue(&queue, response);
+								//memset(BufferTx, 0, PAYLOAD_LEN);
+								//memcpy(BufferTx, response.bytes, PAYLOAD_LEN);
+								//Radio.Send(BufferTx, PAYLOAD_LEN);
+							}	
+						}
+						else if(destiny1 == DeviceID)
+						{
+							//Repassar mensagem
+							memset(BufferTx, 0, PAYLOAD_LEN);
+							BufferRx[6] = DeviceID; //origin1
+							BufferRx[7] = AddressTable[destiny0]; //destiny1
+							memcpy(BufferTx, BufferRx, PAYLOAD_LEN);
+							APP_LOG(TS_ON, VLEVEL_L, "Retransmitting message passed by Device %d to Device %d\n\r", origin1,destiny0);
+							Radio.Send(BufferTx, PAYLOAD_LEN);
+						}		
+					}	
+//						if(destiny == DEVICE_ID)
+//						{
+//							if(ack & 1)
+//							{
+//								//HAL_Delay(1000);
+//								Payload response = {
+//									.fields = 119, 33, 2,
+//									0, DEVICE_ID, origin, 0
+//							};
+//							memcpy(response.fields.payload, "ok", 2);
+//							response.fields.crc = 16;
+//							memset(BufferTx, 0, PAYLOAD_LEN);
+//							memcpy(BufferTx, response.bytes, PAYLOAD_LEN);
+//							Radio.Send(BufferTx, PAYLOAD_LEN);
+//							}	
+//						}
+//						else
+//						{
+//							APP_LOG(TS_ON, VLEVEL_L, "Device %d is reaching for device %d\n\r", origin, destiny);
+//						}	
+//					APP_LOG(TS_ON, VLEVEL_L, "Listening...\n\r");
+//					//Buzz_Slave();
+//					Radio.Rx(RX_TIMEOUT_VALUE);
+//			}
+//			else //Continuar escutando
+//			{
+//				APP_LOG(TS_ON, VLEVEL_L, "Listening...\n\r");
+//				//Buzz_Slave();
+//				Radio.Rx(RX_TIMEOUT_VALUE);
+//			}
+			}		
+			APP_LOG(TS_ON, VLEVEL_L, "Listening...\n\r");
+			Radio.Rx(RX_TIMEOUT_VALUE);
 			break;
 		case TX:
 			APP_LOG(TS_ON, VLEVEL_L, "\n\rPayload transmitted.\n\rBack to Listening...\n\r");
@@ -591,17 +659,38 @@ static void StateMachineProccess(void)
 		case RX_ERROR:
 			APP_LOG(TS_ON, VLEVEL_L, "Rx Timeout/Error...\n\r");
 			//Buzz_Slave();
-			State = RX;
-			Radio.Rx(RX_TIMEOUT_VALUE);
-			break;
+			//break;
 		case TX_TIMEOUT:
-			APP_LOG(TS_ON, VLEVEL_L, "Transmission failed.\n\rTrying again.\n\r");
+			//APP_LOG(TS_ON, VLEVEL_L, "Transmission failed.\n\rTrying again.\n\r");
 			//Buzz_Slave();
+			State = RX;
 			Radio.Rx(RX_TIMEOUT_VALUE);
 			break;
 		default:
 			break;
-	}	
+	}
+
+	/*****TESTE - TRANSMISSOR*****/
+//	if(msgs_sent < 100)
+//	{
+//		Payload response = {
+//		.fields = 119, 33, 32,
+//		0, DEVICE_ID, 10, 0				//destiny = 10
+//		};
+//		memcpy(response.fields.payload, "teste teste teste teste teste ok", 32);
+//		response.fields.crc = 16;
+//		memset(BufferTx, 0, PAYLOAD_LEN);
+//		memcpy(BufferTx, response.bytes, PAYLOAD_LEN);
+//		Radio.Send(BufferTx, PAYLOAD_LEN);
+//		msgs_sent++;
+//		APP_LOG(TS_ON, VLEVEL_L, "%d message(s) sent\n\r", msgs_sent);
+//		HAL_Delay(2000);
+//	}
+//	else
+//	{
+//		APP_LOG(TS_ON, VLEVEL_L, "TEST DONE!\n\r");
+//		HAL_Delay(10000);
+//	}	
 }	
 
 //static void PingPong_Process(void)

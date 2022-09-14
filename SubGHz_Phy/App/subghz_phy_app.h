@@ -90,8 +90,8 @@ extern "C" {
 #define TX_OUTPUT_POWER                             22        /* dBm */
 
 #if (( USE_MODEM_LORA == 1 ) && ( USE_MODEM_FSK == 0 ))
-#define LORA_BANDWIDTH                              0         /* [0: 125 kHz, 1: 250 kHz, 2: 500 kHz, 3: Reserved] */
-#define LORA_SPREADING_FACTOR                       9         /* [SF7..SF12] */
+#define LORA_BANDWIDTH                              1         /* [0: 125 kHz, 1: 250 kHz, 2: 500 kHz, 3: Reserved] */
+#define LORA_SPREADING_FACTOR                7         /* [SF7..SF12] */ //original: 9
 #define LORA_CODINGRATE                             1         /* [1: 4/5, 2: 4/6, 3: 4/7, 4: 4/8] */
 #define LORA_PREAMBLE_LENGTH                        8         /* Same for Tx and Rx */
 #define LORA_SYMBOL_TIMEOUT                         5         /* Symbols */
@@ -116,41 +116,9 @@ extern "C" {
 #define N_RXMESSAGES 												(10)
 /* Tamanho do buffer Rx*/
 #define RXBUFFERSIZE                      			(300)
+#define N_MAX_NODES														(8)
 
-typedef struct Msg2Send_s
-{
-	uint8_t destiny;
-	char *msg;
-	uint16_t len;
-}Msg2Send;
-
-//typedef struct Protocol_s
-//{
-//	uint8_t header1;
-//	uint8_t header2;
-//	uint8_t size;
-//	uint8_t control;
-//	uint8_t origin;
-//	uint8_t destiny;
-//	uint16_t netId;
-//	uint8_t payload[245];
-//	uint8_t crc;
-//}Payload;
-
-//typedef union {
-//	struct {
-//			uint8_t header1;
-//			uint8_t header2;
-//			uint8_t size;
-//			uint8_t control;
-//			uint8_t origin;
-//			uint8_t destiny;
-//			uint16_t netId;
-//			uint8_t payload[245];
-//			uint8_t crc;
-//	}fields;
-//	uint8_t bytes[255];
-//}Payload;	
+//uint8_t *AddressTable[N_MAX_NODES];
 
 /* USER CODE BEGIN EC */
 

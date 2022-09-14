@@ -108,97 +108,16 @@ int main(void)
 	
 	
   /* USER CODE BEGIN 2 */
-	//printf("Testing Printf!\n\r");
-	//HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-	//HAL_Delay(1000);
-	//HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
-	//HAL_Delay(1000);
-	//HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-	//HAL_Delay(1000);
-	//HAL_TIM_PWM_Stop(&htim2, TIM_CHANNEL_2);
 	
-	/*Codigo para pegar inputs do hyperterminal*/
-	
-	/*##-1- Start the transmission process #####################################*/
-  /* While the UART in reception process, user can transmit data through
-     "aTxBuffer" buffer */
-//  if(HAL_UART_Transmit_IT(&huart1, (uint8_t*)aTxStartMessage, TXSTARTMESSAGESIZE)!= HAL_OK)
-//  {
-//    /* Transfer error in transmission process */
-//    Error_Handler();
-//  }
-
-//  /*##-2- Put UART peripheral in reception process ###########################*/
-//  /* Any data received will be stored in "aRxBuffer" buffer : the number max of
-//     data received is 10 */
-//  if(HAL_UART_Receive_IT(&huart1, (uint8_t *)aRxBuffer, RXBUFFERSIZE) != HAL_OK)
-//  {
-//    /* Transfer error in reception process */
-//    Error_Handler();
-//  }
-
-//  /*##-3- Wait for the end of the transfer ###################################*/
-//  /*  Before starting a new communication transfer, you need to check the current
-//      state of the peripheral; if it is busy you need to wait for the end of current
-//      transfer before starting a new one.
-//      For simplicity reasons, this example is just waiting till the end of the
-//      transfer, but application may perform other tasks while transfer operation
-//      is ongoing. */
-//  while (HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY)
-//  {
-//  }
-
-//  /*##-4- Send the received Buffer ###########################################*/
-//  if(HAL_UART_Transmit_IT(&huart1, (uint8_t*)aRxBuffer, RXBUFFERSIZE)!= HAL_OK)
-//  {
-//    /* Transfer error in transmission process */
-//    Error_Handler();
-//  }
-
-//  /*##-5- Wait for the end of the transfer ###################################*/
-//  /*  Before starting a new communication transfer, you need to check the current
-//      state of the peripheral; if it is busy you need to wait for the end of current
-//      transfer before starting a new one.
-//      For simplicity reasons, this example is just waiting till the end of the
-//      transfer, but application may perform other tasks while transfer operation
-//      is ongoing. */
-//  while (HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY)
-//  {
-//  }
-
-//  /*##-6- Send the End Message ###############################################*/
-//  if(HAL_UART_Transmit_IT(&huart1, (uint8_t*)aTxEndMessage, TXENDMESSAGESIZE)!= HAL_OK)
-//  {
-//    /* Transfer error in transmission process */
-//    Error_Handler();
-//  }
-
-//  /*##-7- Wait for the end of the transfer ###################################*/
-//  while (HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY)
-//  {
-//  }
-	
-	/*Fim do codigo hyperterminal*/
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	uint32_t count_t = 0;
 
   while (1)
   {
     /* USER CODE END WHILE */
     MX_SubGHz_Phy_Process();
-		count_t++;
-		if(count_t>500000)
-		{
-			count_t = 0;
-			printf("Hello!\n\r");
-		}
-			
-    /* USER CODE BEGIN 3 */
-		//printf("Hello!\n\r");
-		//HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
